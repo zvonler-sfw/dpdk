@@ -14,6 +14,7 @@ drivers = [
         'bonding',
         'cnxk',
         'cxgbe',
+        'cxi',
         'dpaa',
         'dpaa2',
         'ena',
