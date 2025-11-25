@@ -2,23 +2,15 @@
  * Copyright(c) 2025 Hewlett Packard Enterprise Development LP
  */
 
-#include "rte_cxi_pmd.h"
+#include "cxi_pmd.h"
 
 #include <bus_vdev_driver.h>
 
-struct cxi_tx_queue {
-    struct cxi_cq *cq;
-    struct cxi_eq *eq;
-};
+#include "cxi_eth.h"
+#include "cxi_txrx.h"
+#include "rte_cxi_pmd.h"
 
-struct pmd_internals {
-    struct cxil_dev *dev;
-    struct cxil_lni *lni;
-    struct cxi_cp *cp;
-
-    struct cxi_tx_queue[CXI_MAX_QUEUES];
-};
-
+// The parameters that can be passed to the PMD are defined here.
 #define CXI_PMD_NUM_QUEUES "num_queues"
 
 static const char * const pmd_params[] = {
@@ -27,32 +19,40 @@ static const char * const pmd_params[] = {
 };
 
 static int
-cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
-        uint16_t nb_tx_desc, unsigned int socket_id,
-        const struct rte_eth_txconf *tx_conf)
+parse_arg_count(char const* name, char const *value, void *dest)
 {
-    // !@# is this check needed?
-    if (dev == NULL)
+    char *end;
+    int count = strtol(value, &end, 10);
+    if (count < 1) {
+        PMD_LOG(ERR, "Argument for parameter %s must be a positive integer", name);
         return -EINVAL;
-
-    struct rte_eth_dev_data *config = dev->data;
-    struct pmd_internals *internals = config->dev_private;
-
-    if (tx_queue_id >= config->nb_tx_queues)
-        return -ENODEV;
-
-    config->tx_queues[tx_queue_id] = internals->cxi_tx_queues[tx_queue_id];
-
+    }
+    *((int*)dest) = count;
     return 0;
 }
 
-static void
-cxi_tx_queue_release(struct rte_eth_dev *dev, uint16_t tx_queue_id)
+// Configures the RTE ethernet device from the passed parameters
+static int
+configure_rte_eth_dev(struct rte_eth_dev * const eth_dev, struct rte_kvargs * const kvlist)
 {
-    struct rte_eth_dev_data *config = dev->data;
-    config->tx_queues[tx_queue_id] = NULL;
-}
+    struct rte_eth_dev_data * const params = eth_dev->data;
 
+    // Set the default configuration
+    params->nb_tx_queues = 1;
+
+    // These calls will change the parameter values only for the keys found in the kvlist
+    rc = rte_kvargs_process(kvlist, CXI_PMD_NUM_QUEUES, parse_arg_count, params->nb_tx_queues);
+    if (rc) goto return_code;
+    if (params->nb_tx_queues > CXI_MAX_QUEUES) {
+        PMD_LOG(ERR, "Requested number of TX queues %u greater than max %u",
+                params->nb_tx_queues, CXI_MAX_QUEUES);
+        rc = -ENODEV;
+        goto return_code;
+    }
+
+return_code:
+    return rc;
+}
 
 static const struct eth_dev_ops ops = {
 	.tx_queue_setup = cxi_tx_queue_setup,
@@ -77,42 +77,6 @@ static const struct eth_dev_ops ops = {
     */
 };
 
-static uint16_t
-cxi_tx_pkt_burst(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
-{
-    // !@# q is created in cxi_tx_queue_setup
-}
-
-static int
-parse_arg_count(char const* name, char const *value, void *dest)
-{
-    char *end;
-    int count = strtol(value, &end, 10);
-    if (count < 1) {
-        PMD_LOG(ERR, "Argument for parameter %s must be a positive integer", name);
-        return -EINVAL;
-    }
-    *((int*)dest) = count;
-    return 0;
-}
-
-// Configures the RTE ethernet device from the passed parameters
-static int
-configure_rte_eth_dev(struct ret_eth_dev * const eth_dev, struct rte_kvargs * const kvlist)
-{
-    struct rte_eth_dev_data * const params = eth_dev->data;
-
-    // Set the default configuration
-    params->nb_tx_queues = 1;
-
-    // These calls will change the parameter values only for the keys found in the kvlist
-    rc = rte_kvargs_process(kvlist, CXI_PMD_NUM_QUEUES, parse_arg_count, params->nb_tx_queues);
-    if (rc) goto return_code;
-
-return_code:
-    return rc;
-}
-
 static int
 cxi_probe(struct rte_vdev_device *dev)
 {
@@ -120,7 +84,6 @@ cxi_probe(struct rte_vdev_device *dev)
 
     const char *name = rte_vdev_device_name(dev);
 
-    int rc;
     if (rte_eal_process_type() == RTE_PROC_SECONDARY) {
         struct pmd_internals *internals;
         eth_dev = rte_eth_dev_attach_secondary(name);
@@ -138,24 +101,25 @@ cxi_probe(struct rte_vdev_device *dev)
     if (dev->device.numa_node == SOCKET_ID_ANY)
         dev->device.numa_node = rte_socket_id();
 
+    int rc;
     struct rte_eth_dev * const eth_dev = rte_eth_vdev_allocate(dev, sizeof(*internals));
     if (!eth_dev) {
         rc = -ENOMEM;
         goto return_error;
     }
-    eth_dev->dev_ops = &ops;
-    eth_dev->tx_pkt_burst = cxi_tx_pkt_burst;
 
-    // Parse parameters to the PMD
+    // Parse parameters to the PMD and configure the device
     struct rte_kvargs *kvlist = rte_kvargs_parse(rte_vdev_device_args(dev), pmd_params);
     if (kvlist == NULL) {
         PMD_LOG(ERR, "Failed to parse PMD parameters");
         rc = -EINVAL;
         goto free_eth_dev;
     }
-    configure_rte_eth_dev(eth_dev, kvlist);
-    ret_kvargs_free(kvlist);
-
+    rc = configure_rte_eth_dev(eth_dev, kvlist);
+    rte_kvargs_free(kvlist);
+    if (rc)
+        goto free_eth_dev;
+    // End of parameter parsing and configuration
 
     // The dev_private member points to a structure that maintains the
     // CXI specific data. Any error setting up CXI will be logged and
@@ -178,7 +142,10 @@ cxi_probe(struct rte_vdev_device *dev)
     }
     // End of CXI initialization
 
+    eth_dev->dev_ops = &ops;
+    eth_dev->tx_pkt_burst = cxi_tx_pkt_burst;
     rte_eth_dev_probing_finish(eth_dev);
+
     return 0;
     // End of normal execution path
 
@@ -227,4 +194,4 @@ static struct rte_vdev_driver cxi_pmd = {
 };
 
 RTE_PMD_REGISTER_VDEV(net_cxi, cxi_pmd);
-RTE_PMD_REGISTER_PARAM_STRING(net_cxi, "num_queues=<int> ");
+RTE_PMD_REGISTER_PARAM_STRING(net_cxi, CXI_PMD_NUM_QUEUES "=<int> ");

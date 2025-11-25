@@ -1,0 +1,18 @@
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2025 Hewlett Packard Enterprise Development LP
+ */
+
+#ifndef _CXI_ETH_H_
+#define _CXI_ETH_H_
+
+#include <rte_ethdev.h>
+
+int
+cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
+        uint16_t nb_tx_desc, unsigned int socket_id,
+        const struct rte_eth_txconf *tx_conf);
+
+void
+cxi_tx_queue_release(struct rte_eth_dev *dev, uint16_t tx_queue_id);
+
+#endif
