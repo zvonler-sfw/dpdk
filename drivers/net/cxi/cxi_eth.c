@@ -48,21 +48,55 @@ cxi_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats,
     struct pmd_internals * const internals = config->dev_private;
 
     for (int i = 0; i < config->nb_tx_queues; ++i) {
-        uint64_t packets = internals->cxi_tx_queue[i].stats.dma;
-        uint64_t bytes = internals->cxi_tx_queue[i].stats.dma_bytes;
-        uint64_t tx_dropped = internals->cxi_tx_queue[i].stats.tx_dropped;
+        struct cxi_queue_pair const* const qp = &internals->qps[i];
+        struct cxi_tx_queue const* const txq = qp->txq;
+        struct cxi_rx_queue const* const rxq = qp->rxq;
 
-        stats->opackets += packets;
-        stats->obytes += bytes;
+        uint64_t opackets = txq.stats.dma;
+        uint64_t obytes = txq.stats.dma_bytes;
+        uint64_t tx_dropped = txq.stats.tx_dropped;
+        uint64_t ipackets = rxq.stats.packets;
+        uint64_t ibytes = rxq.stats.bytes;
+
+        stats->opackets += opackets;
+        stats->obytes += obytes;
         stats->oerrors += tx_dropped;
+        stats->ipackets += ipackets;
+        stats->ibytes += ibytes;
+        // !@# Can we compute imissed?
 
         // The qstats pointer is non-null only if RTE_ETH_DEV_AUTOFILL_QUEUE_XSTATS is set
         if (qstats && i < RTE_ETHDEV_QUEUE_STAT_CNTRS) {
-            qstats->q_opackets[i] = packets;
-            qstats->q_obytes[i] = bytes;
+            qstats->q_opackets[i] = opackets;
+            qstats->q_obytes[i] = obytes;
             qstats->q_errors[i] += tx_dropped;
+            qstats->q_ipackets[i] += ipackets;
+            qstats->q_ibytes[i] += ibytes;
         }
     }
 
     return 0;
 }
+
+int
+cxi_stats_reset(struct rte_eth_dev *dev) {
+    struct rte_eth_dev_data *config = dev->data;
+    struct pmd_internals * const internals = config->dev_private;
+
+    for (int i = 0; i < config->nb_tx_queues; ++i) {
+        struct cxi_queue_pair const* const qp = &internals->qps[i];
+
+        struct cxi_tx_queue const* const txq = qp->txq;
+        txq.stats.dma = 0;
+        txq.stats.dma_bytes = 0;
+        txq.stats.tx_busy = 0;
+        txq.stats.tx_dropped = 0;
+
+        struct cxi_rx_queue const* const rxq = qp->rxq;
+        rxq.stats.packets = 0;
+        rxq.stats.bytes = 0;
+    }
+
+    return 0;
+}
+

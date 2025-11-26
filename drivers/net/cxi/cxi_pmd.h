@@ -17,7 +17,19 @@ struct cxi_tx_queue {
     } stats;
 };
 
+struct cxi_rx_queue {
+    struct {
+        uint64_t packets;
+        uint64_t bytes;
+    } stats;
+};
+
 #define CXI_MAX_QUEUES 16
+
+struct cxi_queue_pair {
+    struct cxi_tx_queue txq;
+    struct cxi_rx_queue rxq;
+};
 
 /**
  * The pmd_internals struct holds CXI-specific members used for making
@@ -28,7 +40,7 @@ struct pmd_internals {
     struct cxil_lni *lni;
     struct cxi_cp *cp;
 
-    struct cxi_tx_queue[CXI_MAX_QUEUES];
+    struct cxi_queue_pair qps[CXI_MAX_QUEUES];
 };
 
 #endif
