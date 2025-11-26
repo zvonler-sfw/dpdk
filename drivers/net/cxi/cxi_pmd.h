@@ -13,6 +13,7 @@ struct cxi_tx_queue {
         uint64_t dma;
         uint64_t dma_bytes;
         uint64_t tx_busy;
+        uint64_t tx_dropped;
     } stats;
 };
 

@@ -24,6 +24,7 @@ cxi_tx_pkt_burst(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
         int rc = cxi_cq_emit_dma_eth(txq, &eth_cmd);
         if (rc) {
             txq->stats.tx_busy++;
+            txq->stats.tx_dropped += nb_bufs - i;
             return i;
         }
         txq->stats.dma++;

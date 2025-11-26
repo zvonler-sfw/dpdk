@@ -39,16 +39,19 @@ configure_rte_eth_dev(struct rte_eth_dev * const eth_dev, struct rte_kvargs * co
 
     // Set the default configuration
     params->nb_tx_queues = 1;
+    params->nb_rx_queues = 1;
+    params->dev_flags |= RTE_ETH_DEV_AUTOFILL_QUEUE_XSTATS;
 
     // These calls will change the parameter values only for the keys found in the kvlist
     rc = rte_kvargs_process(kvlist, CXI_PMD_NUM_QUEUES, parse_arg_count, params->nb_tx_queues);
     if (rc) goto return_code;
     if (params->nb_tx_queues > CXI_MAX_QUEUES) {
-        PMD_LOG(ERR, "Requested number of TX queues %u greater than max %u",
+        PMD_LOG(ERR, "Requested number of queues %u greater than max %u",
                 params->nb_tx_queues, CXI_MAX_QUEUES);
         rc = -ENODEV;
         goto return_code;
     }
+    params->nb_rx_queues = params->nb_tx_queues;
 
 return_code:
     return rc;
@@ -57,6 +60,7 @@ return_code:
 static const struct eth_dev_ops ops = {
 	.tx_queue_setup = cxi_tx_queue_setup,
 	.tx_queue_release = cxi_tx_queue_release,
+	.stats_get = cxi_stats_get,
     /**
 	.dev_close = eth_dev_close,
 	.dev_start = eth_dev_start,
@@ -68,7 +72,6 @@ static const struct eth_dev_ops ops = {
 	.mtu_set = eth_mtu_set,
 	.link_update = eth_link_update,
 	.mac_addr_set = eth_mac_address_set,
-	.stats_get = eth_stats_get,
 	.stats_reset = eth_stats_reset,
 	.reta_update = eth_rss_reta_update,
 	.reta_query = eth_rss_reta_query,
