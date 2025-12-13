@@ -7,13 +7,15 @@
 uint16_t
 cxi_tx_pkt_burst(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
 {
+    RTE_SET_USED(q);
+    RTE_SET_USED(bufs);
+
+    /*
     struct cxi_tx_queue * const txq = q;
     struct c_dma_eth_cmd eth_cmd = {
-        /*
         .read_lac = txq->dev->phys_lac,
         .fmt = C_PKT_FORMAT_STD,
         .checksum_ctrl = C_CHECKSUM_CTRL_NONE,
-        */
         .eq = txq->eq->eqn,
     };
 
@@ -30,6 +32,7 @@ cxi_tx_pkt_burst(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
         txq->stats.dma++;
         txq->stats.dma_bytes += m->data_len;
     }
+    */
 
     return nb_bufs;
 }

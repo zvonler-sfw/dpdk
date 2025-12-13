@@ -4,6 +4,8 @@
 
 #include "cxi_eth.h"
 
+#include "cxi_pmd.h"
+
 /**
  * Called by the DPDK application to set up a transmit queue.
  */
@@ -12,6 +14,10 @@ cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
         uint16_t nb_tx_desc, unsigned int socket_id,
         const struct rte_eth_txconf *tx_conf)
 {
+    RTE_SET_USED(nb_tx_desc);
+    RTE_SET_USED(socket_id);
+    RTE_SET_USED(tx_conf);
+
     // !@# is this check needed?
     if (dev == NULL)
         return -EINVAL;
@@ -22,7 +28,8 @@ cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
     if (tx_queue_id >= config->nb_tx_queues)
         return -ENODEV;
 
-    config->tx_queues[tx_queue_id] = internals->cxi_tx_queues[tx_queue_id];
+    config->tx_queues[tx_queue_id] =
+        (struct pmd_internals*)internals->qps[tx_queue_id].txq;
 
     return 0;
 }
@@ -52,11 +59,11 @@ cxi_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats,
         struct cxi_tx_queue const* const txq = qp->txq;
         struct cxi_rx_queue const* const rxq = qp->rxq;
 
-        uint64_t opackets = txq.stats.dma;
-        uint64_t obytes = txq.stats.dma_bytes;
-        uint64_t tx_dropped = txq.stats.tx_dropped;
-        uint64_t ipackets = rxq.stats.packets;
-        uint64_t ibytes = rxq.stats.bytes;
+        uint64_t opackets = txq->stats.dma;
+        uint64_t obytes = txq->stats.dma_bytes;
+        uint64_t tx_dropped = txq->stats.tx_dropped;
+        uint64_t ipackets = rxq->stats.packets;
+        uint64_t ibytes = rxq->stats.bytes;
 
         stats->opackets += opackets;
         stats->obytes += obytes;
@@ -86,15 +93,15 @@ cxi_stats_reset(struct rte_eth_dev *dev) {
     for (int i = 0; i < config->nb_tx_queues; ++i) {
         struct cxi_queue_pair const* const qp = &internals->qps[i];
 
-        struct cxi_tx_queue const* const txq = qp->txq;
-        txq.stats.dma = 0;
-        txq.stats.dma_bytes = 0;
-        txq.stats.tx_busy = 0;
-        txq.stats.tx_dropped = 0;
+        struct cxi_tx_queue * const txq = qp->txq;
+        txq->stats.dma = 0;
+        txq->stats.dma_bytes = 0;
+        txq->stats.tx_busy = 0;
+        txq->stats.tx_dropped = 0;
 
-        struct cxi_rx_queue const* const rxq = qp->rxq;
-        rxq.stats.packets = 0;
-        rxq.stats.bytes = 0;
+        struct cxi_rx_queue * const rxq = qp->rxq;
+        rxq->stats.packets = 0;
+        rxq->stats.bytes = 0;
     }
 
     return 0;

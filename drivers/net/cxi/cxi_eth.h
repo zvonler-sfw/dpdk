@@ -5,7 +5,7 @@
 #ifndef _CXI_ETH_H_
 #define _CXI_ETH_H_
 
-#include <rte_ethdev.h>
+#include <ethdev_driver.h>
 
 int
 cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
@@ -18,5 +18,7 @@ cxi_tx_queue_release(struct rte_eth_dev *dev, uint16_t tx_queue_id);
 int
 cxi_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats,
 		struct eth_queue_stats *qstats);
+
+int cxi_stats_reset(struct rte_eth_dev *dev);
 
 #endif

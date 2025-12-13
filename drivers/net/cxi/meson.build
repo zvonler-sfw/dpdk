@@ -8,24 +8,27 @@ if not is_linux
 endif
 
 # Try to locate libcxi - only build if available
-libcxi_dep = dependency('libcxi', required: false)
-if libcxi_dep.found()
-    libcxi_dep = cc.find_library('cxi', required: false)
-endif
-if not libcxi_dep.found() or not cc.links(min_c_code, depdendencies: libcxi_dep)
-    build = false
-    reason = 'missing dependency, "libcxi"'
-    subdir_done()
-endif
-
-ext_deps += libcxi_dep
+#libcxi_dep = dependency('libcxi', required: false)
+#if libcxi_dep.found()
+    #libcxi_dep = cc.find_library('cxi', required: false)
+#endif
+#if not libcxi_dep.found() or not cc.links(min_c_code, depdendencies: libcxi_dep)
+    #build = false
+    #reason = 'missing dependency, "libcxi"'
+    #subdir_done()
+#endif
+#ext_deps += libcxi_dep
 
 deps + ['ethdev']
 
-headers = files('rte_pmd_cxi.h')
-sources = files('cxi_pmd.c')
+headers = files('rte_cxi_pmd.h')
+sources = files(
+    'cxi_eth.c',
+    'cxi_pmd.c',
+    'cxi_txrx.c',
+)
 
 # !@# Can we set this?
 # require_iova_in_mbuf = false
 
-testpmd_sources += files('cxi_testpmd.c')
+#testpmd_sources += files('cxi_testpmd.c')

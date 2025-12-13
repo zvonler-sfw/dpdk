@@ -5,6 +5,8 @@
 #ifndef _CXI_PMD_H
 #define _CXI_PMD_H
 
+#include <stdint.h>
+
 struct cxi_tx_queue {
     struct cxi_cq *cq;
     struct cxi_eq *eq;
@@ -27,8 +29,8 @@ struct cxi_rx_queue {
 #define CXI_MAX_QUEUES 16
 
 struct cxi_queue_pair {
-    struct cxi_tx_queue txq;
-    struct cxi_rx_queue rxq;
+    struct cxi_tx_queue *txq;
+    struct cxi_rx_queue *rxq;
 };
 
 /**

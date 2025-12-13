@@ -4,11 +4,24 @@
 
 #include "cxi_pmd.h"
 
+#include <ethdev_driver.h>
+#include <ethdev_vdev.h>
 #include <bus_vdev_driver.h>
+#include <rte_kvargs.h>
 
 #include "cxi_eth.h"
 #include "cxi_txrx.h"
 #include "rte_cxi_pmd.h"
+
+// Stubs
+struct cxi_cq {};
+struct cxi_eq {};
+struct cxil_dev {};
+struct cxil_lni {};
+struct cxi_cp {};
+#define CXI_MAX_QUEUES 16
+
+RTE_LOG_REGISTER_DEFAULT(cxi_pmd_logtype, NOTICE);
 
 // The parameters that can be passed to the PMD are defined here.
 #define CXI_PMD_NUM_QUEUES "num_queues"
@@ -43,7 +56,7 @@ configure_rte_eth_dev(struct rte_eth_dev * const eth_dev, struct rte_kvargs * co
     params->dev_flags |= RTE_ETH_DEV_AUTOFILL_QUEUE_XSTATS;
 
     // These calls will change the parameter values only for the keys found in the kvlist
-    rc = rte_kvargs_process(kvlist, CXI_PMD_NUM_QUEUES, parse_arg_count, params->nb_tx_queues);
+    int rc = rte_kvargs_process(kvlist, CXI_PMD_NUM_QUEUES, parse_arg_count, &params->nb_tx_queues);
     if (rc) goto return_code;
     if (params->nb_tx_queues > CXI_MAX_QUEUES) {
         PMD_LOG(ERR, "Requested number of queues %u greater than max %u",
@@ -88,8 +101,7 @@ cxi_probe(struct rte_vdev_device *dev)
     const char *name = rte_vdev_device_name(dev);
 
     if (rte_eal_process_type() == RTE_PROC_SECONDARY) {
-        struct pmd_internals *internals;
-        eth_dev = rte_eth_dev_attach_secondary(name);
+        struct rte_eth_dev * const eth_dev = rte_eth_dev_attach_secondary(name);
         if (!eth_dev) {
             PMD_LOG(ERR, "Failed to probe %s", name);
             return -1;
@@ -105,7 +117,7 @@ cxi_probe(struct rte_vdev_device *dev)
         dev->device.numa_node = rte_socket_id();
 
     int rc;
-    struct rte_eth_dev * const eth_dev = rte_eth_vdev_allocate(dev, sizeof(*internals));
+    struct rte_eth_dev * const eth_dev = rte_eth_vdev_allocate(dev, sizeof(struct pmd_internals));
     if (!eth_dev) {
         rc = -ENOMEM;
         goto return_error;
@@ -127,7 +139,8 @@ cxi_probe(struct rte_vdev_device *dev)
     // The dev_private member points to a structure that maintains the
     // CXI specific data. Any error setting up CXI will be logged and
     // returned to the DPDK framework as a failure to probe.
-    struct pmd_internals * const internals = eth_dev->data->dev_private;
+    //struct pmd_internals * const internals = eth_dev->data->dev_private;
+    /**
     rc = cxil_open_device(0, &internals->dev);
     if (rc) {
         PMD_LOG(ERR, "Failed to open CXI device: %d", rc);
@@ -143,6 +156,7 @@ cxi_probe(struct rte_vdev_device *dev)
         PMD_LOG(ERR, "Failed to allocate CP: %d", rc);
         goto destroy_lni;
     }
+    */
     // End of CXI initialization
 
     eth_dev->dev_ops = &ops;
@@ -152,14 +166,14 @@ cxi_probe(struct rte_vdev_device *dev)
     return 0;
     // End of normal execution path
 
-destroy_cp:
+//destroy_cp:
     // !@# Call can fail but we may not care since already in error path
-    cxil_destroy_cp(internals->cp);
-destroy_lni:
+    //cxil_destroy_cp(internals->cp);
+//destroy_lni:
     // !@# Call can fail but we may not care since already in error path
-    cxil_destroy_lni(internals->lni);
-close_device:
-    cxil_close_device(internals->dev);
+    //cxil_destroy_lni(internals->lni);
+//close_device:
+    //cxil_close_device(internals->dev);
 free_eth_dev:
     rte_eth_dev_release_port(eth_dev);
 return_error:
@@ -172,7 +186,7 @@ cxi_remove(struct rte_vdev_device *dev)
     PMD_LOG(INFO, "cxi_remove on NUMA socket %u", rte_socket_id());
 
     const char *name = rte_vdev_device_name(dev);
-    struct rte_eth_dev *eth_dev = rte_eth_vdev_allocated(name);
+    struct rte_eth_dev *eth_dev = rte_eth_dev_allocated(name);
     if (eth_dev == NULL)
         goto finished; // Nothing to do
 
@@ -180,10 +194,12 @@ cxi_remove(struct rte_vdev_device *dev)
         goto release_port;
 
     // Only the primary process does the CXI teardown
-    struct pmd_internals *internals = eth_dev->data->dev_private;
+    //struct pmd_internals *internals = eth_dev->data->dev_private;
+    /**
     cxil_destroy_cp(internals->cp);
     cxil_destroy_lni(internals->lni);
     cxil_close_device(internals->dev);
+    */
 
 release_port:
     rte_eth_dev_release_port(eth_dev);
