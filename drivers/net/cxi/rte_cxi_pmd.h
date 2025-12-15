@@ -5,6 +5,9 @@
 #ifndef _RTE_CXI_PMD_H_
 #define _RTE_CXI_PMD_H_
 
+#include <rte_log.h>
+
+extern int cxi_pmd_logtype;
 #define RTE_LOGTYPE_CXI_PMD cxi_pmd_logtype
 
 #define PMD_LOG(level, ...) \

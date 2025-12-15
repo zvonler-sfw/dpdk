@@ -21,4 +21,17 @@ cxi_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats,
 
 int cxi_stats_reset(struct rte_eth_dev *dev);
 
+int cxi_eth_dev_configure(struct rte_eth_dev *dev);
+int cxi_eth_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *infos);
+
+int cxi_eth_rx_queue_setup(struct rte_eth_dev *dev, uint16_t rx_queue_id,
+		uint16_t nb_rx_desc, unsigned int socket_id,
+		const struct rte_eth_rxconf *rx_conf,
+		struct rte_mempool *mb_pool);
+
+int cxi_eth_dev_start(struct rte_eth_dev *dev);
+int cxi_eth_dev_stop(struct rte_eth_dev *dev);
+
+int cxi_eth_link_update(struct rte_eth_dev *dev, int wait_to_complete);
+
 #endif

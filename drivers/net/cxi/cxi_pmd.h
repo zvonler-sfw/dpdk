@@ -7,6 +7,11 @@
 
 #include <stdint.h>
 
+#include "rte_cxi_pmd.h"
+
+#define CXI_MAX_QUEUES 16
+#define CXI_MAX_RX_PKTLEN ((uint32_t)-1)
+
 struct cxi_tx_queue {
     struct cxi_cq *cq;
     struct cxi_eq *eq;
@@ -25,8 +30,6 @@ struct cxi_rx_queue {
         uint64_t bytes;
     } stats;
 };
-
-#define CXI_MAX_QUEUES 16
 
 struct cxi_queue_pair {
     struct cxi_tx_queue *txq;

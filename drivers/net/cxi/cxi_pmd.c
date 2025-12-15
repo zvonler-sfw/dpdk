@@ -11,7 +11,6 @@
 
 #include "cxi_eth.h"
 #include "cxi_txrx.h"
-#include "rte_cxi_pmd.h"
 
 // Stubs
 struct cxi_cq {};
@@ -19,7 +18,6 @@ struct cxi_eq {};
 struct cxil_dev {};
 struct cxil_lni {};
 struct cxi_cp {};
-#define CXI_MAX_QUEUES 16
 
 RTE_LOG_REGISTER_DEFAULT(cxi_pmd_logtype, NOTICE);
 
@@ -74,16 +72,16 @@ static const struct eth_dev_ops ops = {
 	.tx_queue_setup = cxi_tx_queue_setup,
 	.tx_queue_release = cxi_tx_queue_release,
 	.stats_get = cxi_stats_get,
+	.dev_configure = cxi_eth_dev_configure,
+	.dev_infos_get = cxi_eth_dev_infos_get,
+	.rx_queue_setup = cxi_eth_rx_queue_setup,
+	.dev_start = cxi_eth_dev_start,
+	.dev_stop = cxi_eth_dev_stop,
+	.link_update = cxi_eth_link_update,
     /**
 	.dev_close = eth_dev_close,
-	.dev_start = eth_dev_start,
-	.dev_stop = eth_dev_stop,
-	.dev_configure = eth_dev_configure,
-	.dev_infos_get = eth_dev_info,
-	.rx_queue_setup = eth_rx_queue_setup,
 	.rx_queue_release = eth_rx_queue_release,
 	.mtu_set = eth_mtu_set,
-	.link_update = eth_link_update,
 	.mac_addr_set = eth_mac_address_set,
 	.stats_reset = eth_stats_reset,
 	.reta_update = eth_rss_reta_update,
@@ -96,7 +94,10 @@ static const struct eth_dev_ops ops = {
 static int
 cxi_probe(struct rte_vdev_device *dev)
 {
-    PMD_LOG(INFO, "cxi_probe on NUMA socket %u", rte_socket_id());
+    bool primary = rte_eal_process_type() != RTE_PROC_SECONDARY;
+
+    PMD_LOG(INFO, "%s process cxi_probe on NUMA socket %u",
+        primary ? "Primary" : "Secondary", rte_socket_id());
 
     const char *name = rte_vdev_device_name(dev);
 
@@ -139,7 +140,17 @@ cxi_probe(struct rte_vdev_device *dev)
     // The dev_private member points to a structure that maintains the
     // CXI specific data. Any error setting up CXI will be logged and
     // returned to the DPDK framework as a failure to probe.
-    //struct pmd_internals * const internals = eth_dev->data->dev_private;
+    struct pmd_internals * const internals = eth_dev->data->dev_private;
+
+    for (int ctr = 0; ctr < CXI_MAX_QUEUES; ++ctr) {
+        struct cxi_rx_queue *rxq =
+            rte_zmalloc_socket(NULL, sizeof(struct cxi_rx_queue), 0, rte_socket_id());
+        struct cxi_tx_queue *txq =
+            rte_zmalloc_socket(NULL, sizeof(struct cxi_tx_queue), 0, rte_socket_id());
+        internals->qps[ctr].txq = txq;
+        internals->qps[ctr].rxq = rxq;
+    }
+
     /**
     rc = cxil_open_device(0, &internals->dev);
     if (rc) {
@@ -163,6 +174,7 @@ cxi_probe(struct rte_vdev_device *dev)
     eth_dev->tx_pkt_burst = cxi_tx_pkt_burst;
     rte_eth_dev_probing_finish(eth_dev);
 
+    PMD_LOG(INFO, "cxi_probe finished successfully eth_dev->dev_ops %p ops.dev_configure %p", eth_dev->dev_ops, ops.dev_configure);
     return 0;
     // End of normal execution path
 
@@ -177,6 +189,7 @@ cxi_probe(struct rte_vdev_device *dev)
 free_eth_dev:
     rte_eth_dev_release_port(eth_dev);
 return_error:
+    PMD_LOG(INFO, "cxi_probe returning error %d", rc);
     return rc;
 }
 
@@ -194,7 +207,13 @@ cxi_remove(struct rte_vdev_device *dev)
         goto release_port;
 
     // Only the primary process does the CXI teardown
-    //struct pmd_internals *internals = eth_dev->data->dev_private;
+    struct pmd_internals *internals = eth_dev->data->dev_private;
+
+    for (int ctr = 0; ctr < CXI_MAX_QUEUES; ++ctr) {
+        rte_free(internals->qps[ctr].txq);
+        rte_free(internals->qps[ctr].rxq);
+    }
+
     /**
     cxil_destroy_cp(internals->cp);
     cxil_destroy_lni(internals->lni);

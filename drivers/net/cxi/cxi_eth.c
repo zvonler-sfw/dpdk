@@ -107,3 +107,88 @@ cxi_stats_reset(struct rte_eth_dev *dev) {
     return 0;
 }
 
+int cxi_eth_dev_configure(struct rte_eth_dev *dev) {
+    RTE_SET_USED(dev);
+    PMD_LOG(INFO, "cxi_eth_dev_configure");
+    return 0;
+}
+
+int cxi_eth_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *infos) {
+    PMD_LOG(INFO, "cxi_eth_dev_infos_get");
+
+    if ((dev == NULL) || (infos == NULL))
+        return -EINVAL;
+
+    struct pmd_internals *internals = dev->data->dev_private;
+
+    infos->max_rx_queues = RTE_DIM(internals->qps);
+    infos->max_tx_queues = RTE_DIM(internals->qps);
+    infos->max_rx_pktlen = CXI_MAX_RX_PKTLEN;
+
+    return 0;
+}
+
+int
+cxi_eth_rx_queue_setup(struct rte_eth_dev *dev, uint16_t rx_queue_id,
+		uint16_t nb_rx_desc __rte_unused,
+		unsigned int socket_id __rte_unused,
+		const struct rte_eth_rxconf *rx_conf __rte_unused,
+		struct rte_mempool *mb_pool)
+{
+    PMD_LOG(INFO, "cxi_eth_rx_queue_setup");
+
+    if ((dev == NULL) || (mb_pool == NULL))
+        return -EINVAL;
+
+    if (rx_queue_id >= dev->data->nb_rx_queues)
+            return -ENODEV;
+
+    struct pmd_internals *internals = dev->data->dev_private;
+    RTE_SET_USED(internals);
+
+    dev->data->rx_queues[rx_queue_id] = internals->qps[rx_queue_id].rxq;
+
+    return 0;
+}
+
+int
+cxi_eth_dev_start(struct rte_eth_dev *dev)
+{
+    PMD_LOG(INFO, "cxi_eth_dev_start");
+
+    if (dev == NULL)
+        return -EINVAL;
+
+    dev->data->dev_link.link_status = RTE_ETH_LINK_UP;
+
+    for (int ctr = 0; ctr < dev->data->nb_rx_queues; ++ctr)
+        dev->data->rx_queue_state[ctr] = RTE_ETH_QUEUE_STATE_STARTED;
+    for (int ctr = 0; ctr < dev->data->nb_tx_queues; ++ctr)
+        dev->data->tx_queue_state[ctr] = RTE_ETH_QUEUE_STATE_STARTED;
+
+    return 0;
+}
+
+int
+cxi_eth_dev_stop(struct rte_eth_dev *dev)
+{
+    PMD_LOG(INFO, "cxi_eth_dev_stop");
+
+    if (dev == NULL)
+        return -EINVAL;
+
+    dev->data->dev_link.link_status = RTE_ETH_LINK_DOWN;
+
+    for (int ctr = 0; ctr < dev->data->nb_rx_queues; ++ctr)
+        dev->data->rx_queue_state[ctr] = RTE_ETH_QUEUE_STATE_STOPPED;
+    for (int ctr = 0; ctr < dev->data->nb_tx_queues; ++ctr)
+        dev->data->tx_queue_state[ctr] = RTE_ETH_QUEUE_STATE_STOPPED;
+
+    return 0;
+}
+
+int
+cxi_eth_link_update(struct rte_eth_dev *dev __rte_unused,
+		int wait_to_complete __rte_unused) {
+    return 0;
+}
