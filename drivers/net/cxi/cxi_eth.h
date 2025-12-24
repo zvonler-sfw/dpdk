@@ -8,6 +8,15 @@
 #include <ethdev_driver.h>
 
 int
+cxi_rx_queue_setup(struct rte_eth_dev *dev, uint16_t rx_queue_id,
+        uint16_t nb_rx_desc, unsigned int socket_id,
+        const struct rte_eth_rxconf *rx_conf,
+        struct rte_mempool *mb_pool);
+
+void
+cxi_rx_queue_release(struct rte_eth_dev *dev, uint16_t qid);
+
+int
 cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
         uint16_t nb_tx_desc, unsigned int socket_id,
         const struct rte_eth_txconf *tx_conf);
@@ -33,5 +42,7 @@ int cxi_eth_dev_start(struct rte_eth_dev *dev);
 int cxi_eth_dev_stop(struct rte_eth_dev *dev);
 
 int cxi_eth_link_update(struct rte_eth_dev *dev, int wait_to_complete);
+
+int cxi_eth_dev_close(struct rte_eth_dev *dev);
 
 #endif

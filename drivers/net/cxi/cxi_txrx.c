@@ -2,13 +2,24 @@
  * Copyright(c) 2010-2015 Intel Corporation
  */
 
+#include "cxi_pmd.h"
 #include "cxi_txrx.h"
 
+#include <rte_mbuf.h>
+
 uint16_t
-cxi_tx_pkt_burst(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
+cxi_tx_pkt_burst(void *rte_q, struct rte_mbuf **bufs, uint16_t nb_bufs)
 {
-    RTE_SET_USED(q);
-    RTE_SET_USED(bufs);
+    struct cxi_tx_queue *q = rte_q;
+
+    uint64_t bytes = 0;
+
+    for (int i = 0; i < nb_bufs; ++i)
+            bytes += rte_pktmbuf_pkt_len(bufs[i]);
+
+    rte_pktmbuf_free_bulk(bufs, nb_bufs);
+    q->stats.tx_pkts += nb_bufs;
+    q->stats.tx_bytes += bytes;
 
     /*
     struct cxi_tx_queue * const txq = q;
@@ -37,3 +48,22 @@ cxi_tx_pkt_burst(void *q, struct rte_mbuf **bufs, uint16_t nb_bufs)
     return nb_bufs;
 }
 
+uint16_t
+cxi_rx_pkt_burst(void *rte_q, struct rte_mbuf **bufs, uint16_t nb_bufs)
+{
+    struct cxi_rx_queue *q = rte_q;
+
+    int packet_size = q->internals->packet_size;
+    if (rte_pktmbuf_alloc_bulk(q->mb_pool, bufs, nb_bufs) != 0)
+        return 0;
+
+    for (int i = 0; i < nb_bufs; ++i) {
+        bufs[i]->data_len = packet_size;
+        bufs[i]->pkt_len = packet_size;
+        bufs[i]->port = q->internals->port_id;
+    }
+
+    q->stats.rx_pkts += nb_bufs;
+    q->stats.rx_bytes += nb_bufs * packet_size;
+    return nb_bufs;
+}

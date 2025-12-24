@@ -6,6 +6,35 @@
 
 #include "cxi_pmd.h"
 
+int
+cxi_rx_queue_setup(struct rte_eth_dev *dev, uint16_t rx_queue_id,
+        uint16_t nb_rx_desc __rte_unused,
+        unsigned int socket_id __rte_unused,
+        const struct rte_eth_rxconf *rx_conf __rte_unused,
+        struct rte_mempool *mb_pool)
+{
+    PMD_LOG(INFO, "cxi_rx_queue_setup");
+
+    struct rte_eth_dev_data *config = dev->data;
+    struct pmd_internals *internals = config->dev_private;
+
+    if (rx_queue_id >= config->nb_rx_queues)
+        return -ENODEV;
+
+    struct cxi_rx_queue *rxq = internals->qps[rx_queue_id].rxq;
+    rxq->mb_pool = mb_pool;
+    config->rx_queues[rx_queue_id] = rxq;
+
+    return 0;
+}
+
+void
+cxi_rx_queue_release(struct rte_eth_dev *dev, uint16_t qid)
+{
+    PMD_LOG(INFO, "cxi_rx_queue_release");
+    dev->data->rx_queues[qid] = NULL;
+}
+
 /**
  * Called by the DPDK application to set up a transmit queue.
  */
@@ -59,11 +88,11 @@ cxi_stats_get(struct rte_eth_dev *dev, struct rte_eth_stats *stats,
         struct cxi_tx_queue const* const txq = qp->txq;
         struct cxi_rx_queue const* const rxq = qp->rxq;
 
-        uint64_t opackets = txq->stats.dma;
-        uint64_t obytes = txq->stats.dma_bytes;
+        uint64_t opackets = txq->stats.tx_pkts;
+        uint64_t obytes = txq->stats.tx_bytes;
         uint64_t tx_dropped = txq->stats.tx_dropped;
-        uint64_t ipackets = rxq->stats.packets;
-        uint64_t ibytes = rxq->stats.bytes;
+        uint64_t ipackets = rxq->stats.rx_pkts;
+        uint64_t ibytes = rxq->stats.rx_bytes;
 
         stats->opackets += opackets;
         stats->obytes += obytes;
@@ -94,14 +123,14 @@ cxi_stats_reset(struct rte_eth_dev *dev) {
         struct cxi_queue_pair const* const qp = &internals->qps[i];
 
         struct cxi_tx_queue * const txq = qp->txq;
-        txq->stats.dma = 0;
-        txq->stats.dma_bytes = 0;
+        txq->stats.tx_pkts = 0;
+        txq->stats.tx_bytes = 0;
         txq->stats.tx_busy = 0;
         txq->stats.tx_dropped = 0;
 
         struct cxi_rx_queue * const rxq = qp->rxq;
-        rxq->stats.packets = 0;
-        rxq->stats.bytes = 0;
+        rxq->stats.rx_pkts = 0;
+        rxq->stats.rx_bytes = 0;
     }
 
     return 0;
@@ -121,6 +150,7 @@ int cxi_eth_dev_infos_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *info
 
     struct pmd_internals *internals = dev->data->dev_private;
 
+    infos->max_mac_addrs = 1;
     infos->max_rx_queues = RTE_DIM(internals->qps);
     infos->max_tx_queues = RTE_DIM(internals->qps);
     infos->max_rx_pktlen = CXI_MAX_RX_PKTLEN;
@@ -192,3 +222,12 @@ cxi_eth_link_update(struct rte_eth_dev *dev __rte_unused,
 		int wait_to_complete __rte_unused) {
     return 0;
 }
+
+int
+cxi_eth_dev_close(struct rte_eth_dev *dev)
+{
+    PMD_LOG(INFO, "cxi_eth_dev_close");
+    dev->data->mac_addrs = NULL;
+    return 0;
+}
+

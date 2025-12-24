@@ -21,6 +21,13 @@ struct cxi_cp {};
 
 RTE_LOG_REGISTER_DEFAULT(cxi_pmd_logtype, NOTICE);
 
+static struct rte_eth_link pmd_link = {
+	.link_speed = RTE_ETH_SPEED_NUM_10G,
+	.link_duplex = RTE_ETH_LINK_FULL_DUPLEX,
+	.link_status = RTE_ETH_LINK_DOWN,
+	.link_autoneg = RTE_ETH_LINK_FIXED,
+};
+
 // The parameters that can be passed to the PMD are defined here.
 #define CXI_PMD_NUM_QUEUES "num_queues"
 
@@ -69,18 +76,18 @@ return_code:
 }
 
 static const struct eth_dev_ops ops = {
+	.rx_queue_setup = cxi_rx_queue_setup,
+	.rx_queue_release = cxi_rx_queue_release,
 	.tx_queue_setup = cxi_tx_queue_setup,
 	.tx_queue_release = cxi_tx_queue_release,
 	.stats_get = cxi_stats_get,
 	.dev_configure = cxi_eth_dev_configure,
 	.dev_infos_get = cxi_eth_dev_infos_get,
-	.rx_queue_setup = cxi_eth_rx_queue_setup,
 	.dev_start = cxi_eth_dev_start,
 	.dev_stop = cxi_eth_dev_stop,
 	.link_update = cxi_eth_link_update,
+	.dev_close = cxi_eth_dev_close,
     /**
-	.dev_close = eth_dev_close,
-	.rx_queue_release = eth_rx_queue_release,
 	.mtu_set = eth_mtu_set,
 	.mac_addr_set = eth_mac_address_set,
 	.stats_reset = eth_stats_reset,
@@ -141,13 +148,22 @@ cxi_probe(struct rte_vdev_device *dev)
     // CXI specific data. Any error setting up CXI will be logged and
     // returned to the DPDK framework as a failure to probe.
     struct pmd_internals * const internals = eth_dev->data->dev_private;
+    internals->packet_size = 64;
+    rte_eth_random_addr(internals->eth_addr.addr_bytes);
+    internals->port_id = eth_dev->data->port_id;
+
+    eth_dev->data->mac_addrs = &internals->eth_addr;
+    eth_dev->data->promiscuous = 1;
+    eth_dev->data->dev_link = pmd_link;
 
     for (int ctr = 0; ctr < CXI_MAX_QUEUES; ++ctr) {
         struct cxi_rx_queue *rxq =
             rte_zmalloc_socket(NULL, sizeof(struct cxi_rx_queue), 0, rte_socket_id());
         struct cxi_tx_queue *txq =
             rte_zmalloc_socket(NULL, sizeof(struct cxi_tx_queue), 0, rte_socket_id());
+        txq->internals = internals;
         internals->qps[ctr].txq = txq;
+        rxq->internals = internals;
         internals->qps[ctr].rxq = rxq;
     }
 
@@ -172,6 +188,7 @@ cxi_probe(struct rte_vdev_device *dev)
 
     eth_dev->dev_ops = &ops;
     eth_dev->tx_pkt_burst = cxi_tx_pkt_burst;
+    eth_dev->rx_pkt_burst = cxi_rx_pkt_burst;
     rte_eth_dev_probing_finish(eth_dev);
 
     PMD_LOG(INFO, "cxi_probe finished successfully eth_dev->dev_ops %p ops.dev_configure %p", eth_dev->dev_ops, ops.dev_configure);
@@ -196,7 +213,7 @@ return_error:
 static int
 cxi_remove(struct rte_vdev_device *dev)
 {
-    PMD_LOG(INFO, "cxi_remove on NUMA socket %u", rte_socket_id());
+    PMD_LOG(INFO, "NUMA socket %u", rte_socket_id());
 
     const char *name = rte_vdev_device_name(dev);
     struct rte_eth_dev *eth_dev = rte_eth_dev_allocated(name);
@@ -213,6 +230,8 @@ cxi_remove(struct rte_vdev_device *dev)
         rte_free(internals->qps[ctr].txq);
         rte_free(internals->qps[ctr].rxq);
     }
+
+    cxi_eth_dev_close(eth_dev);
 
     /**
     cxil_destroy_cp(internals->cp);
