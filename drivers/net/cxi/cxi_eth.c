@@ -43,6 +43,8 @@ cxi_tx_queue_setup(struct rte_eth_dev *dev, uint16_t tx_queue_id,
         uint16_t nb_tx_desc, unsigned int socket_id,
         const struct rte_eth_txconf *tx_conf)
 {
+    PMD_LOG(INFO, "cxi_eth_tx_queue_setup");
+
     RTE_SET_USED(nb_tx_desc);
     RTE_SET_USED(socket_id);
     RTE_SET_USED(tx_conf);
@@ -121,16 +123,10 @@ cxi_stats_reset(struct rte_eth_dev *dev) {
 
     for (int i = 0; i < config->nb_tx_queues; ++i) {
         struct cxi_queue_pair const* const qp = &internals->qps[i];
-
         struct cxi_tx_queue * const txq = qp->txq;
-        txq->stats.tx_pkts = 0;
-        txq->stats.tx_bytes = 0;
-        txq->stats.tx_busy = 0;
-        txq->stats.tx_dropped = 0;
-
+        memset(&txq->stats, 0, sizeof(txq->stats));
         struct cxi_rx_queue * const rxq = qp->rxq;
-        rxq->stats.rx_pkts = 0;
-        rxq->stats.rx_bytes = 0;
+        memset(&rxq->stats, 0, sizeof(rxq->stats));
     }
 
     return 0;
@@ -139,6 +135,8 @@ cxi_stats_reset(struct rte_eth_dev *dev) {
 int cxi_eth_dev_configure(struct rte_eth_dev *dev) {
     RTE_SET_USED(dev);
     PMD_LOG(INFO, "cxi_eth_dev_configure");
+    PMD_LOG(INFO, "Configuring device with %u RX queues, %u TX queues",
+                dev->data->nb_rx_queues, dev->data->nb_tx_queues);
     return 0;
 }
 

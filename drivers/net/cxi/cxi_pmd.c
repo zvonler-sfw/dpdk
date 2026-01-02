@@ -53,6 +53,8 @@ parse_arg_count(char const* name, char const *value, void *dest)
 static int
 configure_rte_eth_dev(struct rte_eth_dev * const eth_dev, struct rte_kvargs * const kvlist)
 {
+    PMD_LOG(INFO, "starting");
+
     struct rte_eth_dev_data * const params = eth_dev->data;
 
     // Set the default configuration
@@ -70,6 +72,7 @@ configure_rte_eth_dev(struct rte_eth_dev * const eth_dev, struct rte_kvargs * co
         goto return_code;
     }
     params->nb_rx_queues = params->nb_tx_queues;
+    PMD_LOG(INFO, "Set nb_rx_queues = nb_tx_queues = %d", params->nb_rx_queues);
 
 return_code:
     return rc;
@@ -81,6 +84,7 @@ static const struct eth_dev_ops ops = {
 	.tx_queue_setup = cxi_tx_queue_setup,
 	.tx_queue_release = cxi_tx_queue_release,
 	.stats_get = cxi_stats_get,
+	.stats_reset = cxi_stats_reset,
 	.dev_configure = cxi_eth_dev_configure,
 	.dev_infos_get = cxi_eth_dev_infos_get,
 	.dev_start = cxi_eth_dev_start,
@@ -90,7 +94,6 @@ static const struct eth_dev_ops ops = {
     /**
 	.mtu_set = eth_mtu_set,
 	.mac_addr_set = eth_mac_address_set,
-	.stats_reset = eth_stats_reset,
 	.reta_update = eth_rss_reta_update,
 	.reta_query = eth_rss_reta_query,
 	.rss_hash_update = eth_rss_hash_update,
