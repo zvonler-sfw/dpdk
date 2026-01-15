@@ -11,16 +11,30 @@ should be demonstrated with a packet generator and packet capture.
 
 ### Functionality Milestones
 
+#### Ping test identification
+
+Using https://github.com/kogdenko/dpdk-ping
+
+ * ☑ Test executes on memif interface
+ * ☑ Test executes on MLX5 hardware in SFW host
+   * ~40GB/s achievable with these commands:
+     * `sudo dpdk-testpmd -l 14-22 -a 0000:82:00.0 --proc-type=primary --file-prefix=pmd -- -i --port-topology=loop --nb-cores=8 --txq=8 --rxq=8`
+     * `sudo build/dpdk-ping --proc-type=primary --file-prefix=ping -- -B 2000000 -L 1200 -R on -l 23-27 -H 72:55:0B:F5:5A:2D -t 30 -p 0000:82:00.1 -b true`
+ 
 #### Cassini packet generator: `cxi_udp_gen`
 
  * ☑ Fixed to load and shutdown without error
  * ☑ Generates packets
 
+#### Cassini packet receiver - Not yet identified
+
 #### Netsim setup
 
+Moved environment to cn10.wham.cray.next.com
+
  * ☑ Able to start VM with two interfaces
- * ☐ Able to start two VMs with connected interfaces
- * ☐ Able to send packets from one VM and capture on another
+ * ☑ Able to start two VMs with connected interfaces
+ * ☑ Able to send packets from one VM and capture on another
 
 #### Cassini PMD driver
 
