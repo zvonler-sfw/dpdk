@@ -23,8 +23,9 @@ Using https://github.com/kogdenko/dpdk-ping
 
  * ☑ Fixed to load and shutdown without error
  * ☑ Generates packets visible to tcpdump
- * ☐ Updating to use cxi_context like other test programs
- * ☐ Adding receive functionality - learning to program set list
+ * ☑ Updating to use cxi_context like other test programs
+ * ☑ Adding receive functionality - learning to program set list
+ * ☑ Receive side now working
 
 #### Netsim setup
 
@@ -32,7 +33,7 @@ Moved environment to cn10.wham.cray.next.com
 
  * ☑ Able to start VM with two interfaces
  * ☑ Able to send packets from one interface and capture on another
- * ☐ Understand how ethernet devices are added to set list by test-eth-driver script
+ * ☑ Understand how ethernet devices are added to set list by test-eth-driver script
  * ☐ Demonstrate cxi_udp_gen traffic simultaneous with regular ethernet
 
 #### Cassini PMD driver
@@ -48,7 +49,7 @@ Moved environment to cn10.wham.cray.next.com
 ### Functionality Milestones
 
  * ☑ Send UDP packets with cxi_udp_gen using libcxi API
- * ☐ Receive UDP packets with cxi_udp_gen using libcxi API
+ * ☑ Receive UDP packets with cxi_udp_gen using libcxi API
  * ☐ Send UDP packets with testpmd and DPDK CXI driver
  * ☐ Receive UDP packets with testpmd and DPDK CXI driver
 
