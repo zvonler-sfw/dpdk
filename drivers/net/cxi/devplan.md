@@ -26,6 +26,9 @@ Using https://github.com/kogdenko/dpdk-ping
  * ☑ Updating to use cxi_context like other test programs
  * ☑ Adding receive functionality - learning to program set list
  * ☑ Receive side now working
+ * ☐ Change receive side back to direct libcxi calls to support multithreading
+ * ☐ Some packets are not being caught by the receiver - need to understand why
+ * ☐ Code review once receive side uses direct libcxi again
 
 #### Netsim setup
 
