@@ -26,7 +26,8 @@ Using https://github.com/kogdenko/dpdk-ping
  * ☑ Updating to use cxi_context like other test programs
  * ☑ Adding receive functionality - learning to program set list
  * ☑ Receive side now working
- * ☐ Change receive side back to direct libcxi calls to support multithreading
+ * ☑ Change receive side back to direct libcxi calls to support multithreading
+ * ☑ Exercise RSS with multiple receive threads - required netsim enhancement
  * ☐ Some packets are not being caught by the receiver - need to understand why
  * ☐ Code review once receive side uses direct libcxi again
 
@@ -37,6 +38,7 @@ Moved environment to cn10.wham.cray.next.com
  * ☑ Able to start VM with two interfaces
  * ☑ Able to send packets from one interface and capture on another
  * ☑ Understand how ethernet devices are added to set list by test-eth-driver script
+ * ☑ Extended netsim to support UDP dst/src port RSS hashing
  * ☐ Demonstrate cxi_udp_gen traffic simultaneous with regular ethernet
 
 #### Cassini PMD driver
@@ -53,6 +55,7 @@ Moved environment to cn10.wham.cray.next.com
 
  * ☑ Send UDP packets with cxi_udp_gen using libcxi API
  * ☑ Receive UDP packets with cxi_udp_gen using libcxi API
+ * ☑ Receive UDP packets on multiple threads with RSS
  * ☐ Send UDP packets with testpmd and DPDK CXI driver
  * ☐ Receive UDP packets with testpmd and DPDK CXI driver
 
